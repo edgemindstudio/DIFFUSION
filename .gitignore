@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+artifacts/**
+logs/**
+*.pt
+*.h5
+*.png
+*.npy
+.DS_Store
+eval/val_common.py
+eval/synth_loader.py
+.USTC-TFC2016_malware/

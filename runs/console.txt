@@ -1,0 +1,27 @@
+[2025-09-13T17:46:52Z] ConditionalDiffusion | seed=42 | notes=phase2-real
+  FID: 75.2508
+  cFID (macro): 107.7213
+  Diversity: 0.0049
+  JS: 0.030437169579274084 | KL: 0.17634695189753857
+  Utility Δ(RS−R): accuracy=-0.0102, macro_f1=-0.0097, balanced_accuracy=-0.0103, macro_auprc=-0.0022, recall_at_1pct_fpr=-0.0132, ece=-0.0046, brier=0.0110
+  Images: {'train_real': 81000, 'val_real': None, 'test_real': None, 'synthetic': 225}
+Model: ConditionalDiffusion   Seed: 42
+Counts → train:81000  val:4500  test:4500  synth:None
+Generative → FID(macro): None  cFID(macro): None  JS: None  KL: None  Div: None
+Utility R   → acc: 0.9582222222222222  bal_acc: 0.9586828755035052  macro_f1: 0.9583797040098965
+Utility R+S → acc: None  bal_acc: None  macro_f1: None
+Model: ConditionalDiffusion   Seed: 42
+Counts → train:81000  val:4500  test:4500  synth:225
+Generative → FID(macro): 75.25079779903386  cFID(macro): 107.7213016712437  JS: 0.030437169579274084  KL: 0.17634695189753857  Div: 0.004866233095526695
+Utility R   → acc: 0.9566666666666667  bal_acc: 0.9571197688200095  macro_f1: 0.9569493737371558
+Utility R+S → acc: 0.9522222222222222  bal_acc: 0.9530980522261889  macro_f1: 0.952599799344364
+Model: ConditionalDiffusion   Seed: 42
+Counts → train:81000  val:4500  test:4500  synth:None
+Generative → FID(macro): None  cFID(macro): None  JS: None  KL: None  Div: None
+Utility R   → acc: 0.9571111111111111  bal_acc: 0.9574939686341077  macro_f1: 0.9573111518518532
+Utility R+S → acc: None  bal_acc: None  macro_f1: None
+Model: ConditionalDiffusion   Seed: 42
+Counts → train:81000  val:4500  test:4500  synth:225
+Generative → FID(macro): 75.25079779903386  cFID(macro): 107.7213016712437  JS: 0.030437169579274084  KL: 0.17634695189753857  Div: 0.004866233095526695
+Utility R   → acc: 0.9611111111111111  bal_acc: 0.9615808504473701  macro_f1: 0.961621706996218
+Utility R+S → acc: 0.9526666666666667  bal_acc: 0.9535448859894965  macro_f1: 0.9530769142557555

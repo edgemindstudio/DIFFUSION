@@ -1,0 +1,36 @@
+# config.yaml
+
+SEED: 42
+DATA_DIR: USTC-TFC2016_malware
+IMG_SHAPE: [40, 40, 1]
+NUM_CLASSES: 9
+
+# Training
+LATENT_DIM: 100
+BATCH_SIZE: 128
+EPOCHS: 5
+PATIENCE: 5
+LR: 0.0002
+BETA_1: 0.9
+
+# Diffusion / schedule
+TIMESTEPS: 1000
+SCHEDULE: cosine        # <— switch pipeline to use cosine ᾱ_t if present
+BETA_START: 0.0001
+BETA_END: 0.02
+BASE_FILTERS: 96
+DEPTH: 3
+TIME_EMB_DIM: 128
+
+# Synthesis
+SAMPLES_PER_CLASS: 25
+
+# Eval
+VAL_FRACTION: 0.5
+FID_CAP: 200
+
+ARTIFACTS:
+  checkpoints: artifacts/diffusion/checkpoints
+  synthetic:   artifacts/diffusion/synthetic
+  summaries:   artifacts/diffusion/summaries
+  tensorboard: artifacts/tensorboard
