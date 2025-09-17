@@ -11,3 +11,52 @@ logs/**
 eval/val_common.py
 eval/synth_loader.py
 .USTC-TFC2016_malware/
+
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# --- Python build / cache ---
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+.mypy_cache/
+.pyre/
+.ipynb_checkpoints/
+
+# --- Environments & secrets ---
+venv/
+.env
+.env.*
+
+# --- Generated artifacts (keep repo clean) ---
+artifacts/
+logs/
+runs/
+samples/
+synthetic/
+
+# If you keep raw data here, ignore it
+data/
+datasets/
+USTC-TFC2016_malware/
+
+# --- Model weights / checkpoints (all common formats) ---
+*.weights.h5
+*.ckpt
+*.ckpt.*
+*.pth
+*.onnx
+*.tflite
+*.pb
+tfevents.*
+
+# --- Big numpy blobs (usually huge) ---
+*.npz

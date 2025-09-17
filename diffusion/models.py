@@ -5,10 +5,10 @@ Model builders for the Conditional Diffusion (class-conditioned DDPM) project.
 
 What this module provides
 -------------------------
-- SinusoidalTimeEmbedding: Keras layer that maps scalar timesteps -> embeddings.
-- build_diffusion_model(...): small UNet-like noise predictor εθ(x_t, t, y).
-  The returned model is **compiled** (MSE on noise, Adam optimizer) and ready
-  for training or weight loading.
+- SinusoidalTimeEmbedding: Keras layer mapping scalar timesteps -> embeddings.
+- build_diffusion_model(...): compact UNet-like noise predictor εθ(x_t, t, y).
+  The returned model is **compiled** (MSE on noise, Adam) and ready for training
+  or weight loading.
 
 Conventions
 -----------
@@ -20,11 +20,11 @@ Conventions
 
 Notes
 -----
-The architecture below is intentionally compact to run comfortably on CPU / M1
-GPUs. It still includes:
+Architecture is intentionally compact for CPU / Apple Silicon, but includes:
   * sinusoidal timestep embedding
   * class conditioning
   * UNet-style down/up path with skip connections
+
 Tune `base_filters`, `depth`, and `time_emb_dim` for larger models.
 """
 
@@ -41,40 +41,41 @@ from tensorflow.keras import layers, models
 # ---------------------------------------------------------------------
 class SinusoidalTimeEmbedding(layers.Layer):
     """
-    Sinusoidal timestep embedding as in transformer/DDPM literature.
+    Sinusoidal timestep embedding as in Transformer/DDPM literature.
 
-    Input:  t  – int32/float32 tensor of shape (B,) or (B, 1)
-    Output: emb – float32 tensor of shape (B, dim)
+    Input:   t  – int32/float32 tensor of shape (B,) or (B, 1)
+    Output:  emb – float32 tensor of shape (B, dim)
 
-    Implementation detail:
-    We produce an even-sized embedding (2 * half_dim) using sin/cos pairs,
-    then (optionally) project it to `dim` with a Dense layer if needed.
+    Impl details:
+    - Produce an even-sized embedding (2 * half_dim) via sin/cos pairs.
+    - If `dim` is odd, project to exact `dim` with a Dense layer.
+    - Robust when dim is very small (avoids divide-by-zero).
     """
     def __init__(self, dim: int, **kwargs):
         super().__init__(**kwargs)
-        # We keep the "target" dimension for shape reporting; the internal
-        # sinusoid will have size 2 * floor(dim/2)
         self.dim = int(dim)
         self.half_dim = max(1, self.dim // 2)
         self.proj = None
         if self.dim != 2 * self.half_dim:
-            # If requested dim is odd, project to the exact dim
-            self.proj = layers.Dense(self.dim)
+            self.proj = layers.Dense(self.dim, name="time_proj")
 
     def call(self, t):
-        # t -> shape (B,)
+        # Flatten to (B,)
         t = tf.reshape(t, (-1,))
         t = tf.cast(t, tf.float32)
 
-        # Compute frequencies
+        # Frequencies: exp(-log(10000) * i / (half_dim-1)), i=0..half_dim-1
+        # Guard denominator to avoid division by zero when half_dim == 1
+        denom = tf.cast(tf.maximum(self.half_dim - 1, 1), tf.float32)
         freqs = tf.exp(
             tf.range(self.half_dim, dtype=tf.float32)
-            * -(tf.math.log(10000.0) / tf.cast(self.half_dim - 1, tf.float32))
-        )
-        # Outer product (B, half_dim)
-        args = tf.expand_dims(t, -1) * tf.expand_dims(freqs, 0)
+            * -(tf.math.log(10000.0) / denom)
+        )  # (half_dim,)
 
+        # Outer product -> (B, half_dim)
+        args = tf.expand_dims(t, -1) * tf.expand_dims(freqs, 0)
         emb = tf.concat([tf.sin(args), tf.cos(args)], axis=-1)  # (B, 2*half_dim)
+
         if self.proj is not None:
             emb = self.proj(emb)
         return emb
@@ -102,11 +103,10 @@ def _conv_block(x, filters: int, name: str):
 
 def _broadcast_to_spatial(emb, h: int, w: int):
     """
-    (B, D) -> (B, H, W, D) by expanding and tiling.
-    Wrapped in Lambdas so it works with KerasTensors.
+    (B, D) -> (B, H, W, D) via expand + tile, wrapped in Lambdas for KerasTensors.
     """
-    x = layers.Lambda(lambda e: tf.expand_dims(tf.expand_dims(e, 1), 1))(emb)               # (B, 1, 1, D)
-    x = layers.Lambda(lambda e: tf.tile(e, [1, h, w, 1]))(x)                                 # (B, H, W, D)
+    x = layers.Lambda(lambda e: tf.expand_dims(tf.expand_dims(e, 1), 1), name="cond_expand")(emb)  # (B,1,1,D)
+    x = layers.Lambda(lambda e: tf.tile(e, [1, h, w, 1]), name="cond_tile")(x)                     # (B,H,W,D)
     return x
 
 
@@ -135,6 +135,12 @@ def build_diffusion_model(
     """
     assert depth >= 1, "depth must be >= 1"
     H, W, C = img_shape
+    stride_total = 2 ** depth
+    if (H % stride_total) != 0 or (W % stride_total) != 0:
+        raise ValueError(
+            f"img_shape spatial dims must be divisible by 2**depth ({stride_total}). "
+            f"Got H={H}, W={W}, depth={depth}."
+        )
 
     # ---------------- Inputs ----------------
     noisy_in = layers.Input(shape=img_shape, name="noisy_image")
@@ -187,7 +193,7 @@ def build_diffusion_model(
     # Compile for MSE-on-noise objective (standard DDPM target)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate, beta_1=beta_1),
-        loss="mse"
+        loss="mse",
     )
     return model
 

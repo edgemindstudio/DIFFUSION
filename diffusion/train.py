@@ -166,7 +166,7 @@ def train_diffusion(
     epochs: int = 200,
     batch_size: int = 128,
     learning_rate: float = 2e-4,
-    beta_1: float = 0.5,
+    beta_1: float = 0.9,
     alpha_hat: Optional[np.ndarray] = None,
     T: int = 1000,
     patience: int = 10,
@@ -203,7 +203,7 @@ def train_diffusion(
     Returns
     -------
     Dict[str, float]
-        Final metrics: {"train_loss": ..., "val_loss": ...}
+        Final metrics: {"train_loss": ..., "val_loss": ..., "best_val": ...}
     """
     _ensure_dir(ckpt_dir)
 
@@ -223,8 +223,9 @@ def train_diffusion(
 
     # Compact helper to sample random t per batch size
     def _sample_t(n: tf.Tensor) -> tf.Tensor:
-        # upper bound is exclusive; ensure max index < len(alpha_hat)
-        return tf.random.uniform(shape=(n,), minval=0, maxval=alpha_hat_tf.shape[0], dtype=tf.int32)
+        # use dynamic length to be tf.function-safe
+        T_dyn = tf.shape(alpha_hat_tf)[0]
+        return tf.random.uniform(shape=(n,), minval=0, maxval=T_dyn, dtype=tf.int32)
 
     for epoch in range(1, epochs + 1):
         # --------- Training ---------
@@ -248,34 +249,32 @@ def train_diffusion(
                 val_losses.append(vloss)
             val_loss = _as_float(tf.reduce_mean(val_losses))
 
-        # --------- Logging / TensorBoard ---------
+        # --------- Logging / TensorBoard hook ---------
         if log_cb is not None:
             log_cb(epoch, train_loss, val_loss)
 
         # --------- Checkpoints ---------
-        # Save an "epoch" checkpoint periodically (and also at epoch 1 for quick inspection)
+        # Periodic epoch snapshot (and at epoch 1 for easy inspection)
         if epoch == 1 or epoch % 25 == 0:
-            model.save_weights(str(ckpt_dir / f"DIFF_epoch_{epoch:04d}.weights.h5"))
+            model.save_weights(str(ckpt_dir / f"DDPM_epoch_{epoch:04d}.weights.h5"))
         # Always update the "last" checkpoint
-        model.save_weights(str(ckpt_dir / "DIFF_last.weights.h5"))
+        model.save_weights(str(ckpt_dir / "DDPM_last.weights.h5"))
 
-        # Legacy (h5) convenience files for older scripts
-        model.save_weights(str(ckpt_dir / "diffusion_last.h5"))
+        # Legacy convenience files for older scripts
+        model.save_weights(str(ckpt_dir / "ddpm_last.h5"))
 
-        # Best model tracking (prefers validation if available)
+        # Best model tracking (prefer validation if available)
         score_for_early_stop = val_loss if val_loss is not None else train_loss
         if score_for_early_stop < best_val:
             best_val = score_for_early_stop
             patience_ctr = 0
-            model.save_weights(str(ckpt_dir / "DIFF_best.weights.h5"))
-            model.save_weights(str(ckpt_dir / "diffusion_best.h5"))  # legacy
+            model.save_weights(str(ckpt_dir / "DDPM_best.weights.h5"))
+            model.save_weights(str(ckpt_dir / "ddpm_best.h5"))  # legacy
         else:
             patience_ctr += 1
             if patience_ctr >= patience:
-                # Early stop
-                break
+                break  # early stop
 
-    # Return a tiny summary (useful for quick programmatic checks)
     return {
         "train_loss": float(train_loss),
         "val_loss": float(val_loss) if val_loss is not None else float("nan"),
